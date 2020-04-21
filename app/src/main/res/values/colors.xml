@@ -4,6 +4,6 @@
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
 
-    <color name="Human">#5d940b</color>
+    <color name="Human">#0000FF</color>
     <color name="Alien">#b73131</color>
 </resources>
