@@ -1,10 +1,14 @@
 package com.testing.simpleimageclassifier
 
 import android.Manifest
+import android.R.attr
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
@@ -14,12 +18,14 @@ import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Toast
 import com.testing.simpleimageclassifier.classifier.*
 import com.testing.simpleimageclassifier.classifier.tensorflow.ImageClassifierFactory
 import com.testing.simpleimageclassifier.utils.getCroppedBitmap
 import com.testing.simpleimageclassifier.utils.getUriFromFilePath
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
+
 
 private const val REQUEST_PERMISSIONS = 1
 private const val REQUEST_TAKE_PICTURE = 2
@@ -59,6 +65,20 @@ class MainActivity : AppCompatActivity() {
             init()
         } else {
             requestPermissions()
+        }
+
+        when(requestCode){
+            PERMISSION_CODE -> {
+                if (grantResults.size >0 && grantResults[0] ==
+                        PackageManager.PERMISSION_GRANTED){
+                    //permission from popup granted
+                    pickImageFromGallery()
+                }
+                else{
+                    //permission from popup denied
+                    Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -100,23 +120,69 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return if (item.itemId == R.id.take_photo) {
+        return (if (item.itemId == R.id.take_photo) {
             takePhoto()
             true
-        } else {
-            super.onOptionsItemSelected(item)
+        } else if (item.itemId == R.id.pick_photo)
+        {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+                if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                        PackageManager.PERMISSION_DENIED){
+                    //permission denied
+                    val permissions = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE);
+                    //show popup to request runtime permission
+                    requestPermissions(permissions, PERMISSION_CODE);
+                }
+                else{
+                    //permission already granted
+                    pickImageFromGallery();
+                }
+            }
+            else{
+                //system OS is < Marshmallow
+                pickImageFromGallery();
+            }
         }
+        else
+        {
+            super.onOptionsItemSelected(item)
+        }) as Boolean
     }
+
+    private fun pickImageFromGallery() {
+        //Intent to pick image
+        val intent = Intent(Intent.ACTION_PICK)
+        intent.type = "image/*"
+        startActivityForResult(intent, IMAGE_PICK_CODE)
+    }
+
+    companion object {
+        //image pick code
+        private val IMAGE_PICK_CODE = 1000;
+        //Permission code
+        private val PERMISSION_CODE = 1001;
+    }
+
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         val file = File(photoFilePath)
         if (requestCode == REQUEST_TAKE_PICTURE && file.exists()) {
             classifyPhoto(file)
         }
+
+        if (resultCode == Activity.RESULT_OK && requestCode == IMAGE_PICK_CODE){
+            classifyPhotoWhenImageIsGiven(MediaStore.Images.Media.getBitmap(this.contentResolver,data?.data))
+        }
     }
 
     private fun classifyPhoto(file: File) {
         val photoBitmap = BitmapFactory.decodeFile(file.absolutePath)
+        val croppedBitmap = getCroppedBitmap(photoBitmap)
+        classifyAndShowResult(croppedBitmap)
+        imagePhoto.setImageBitmap(photoBitmap)
+    }
+
+    private fun classifyPhotoWhenImageIsGiven(photoBitmap: Bitmap) {
         val croppedBitmap = getCroppedBitmap(photoBitmap)
         classifyAndShowResult(croppedBitmap)
         imagePhoto.setImageBitmap(photoBitmap)
