@@ -16,6 +16,7 @@ import android.provider.MediaStore
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
@@ -25,6 +26,7 @@ import com.testing.simpleimageclassifier.utils.getCroppedBitmap
 import com.testing.simpleimageclassifier.utils.getUriFromFilePath
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
+import kotlin.math.log
 
 
 private const val REQUEST_PERMISSIONS = 1
@@ -87,7 +89,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun init() {
         createClassifier()
-        takePhoto()
     }
 
     private fun createClassifier() {
@@ -125,23 +126,10 @@ class MainActivity : AppCompatActivity() {
             true
         } else if (item.itemId == R.id.pick_photo)
         {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
-                if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
-                        PackageManager.PERMISSION_DENIED){
-                    //permission denied
-                    val permissions = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE);
-                    //show popup to request runtime permission
-                    requestPermissions(permissions, PERMISSION_CODE);
-                }
-                else{
-                    //permission already granted
-                    pickImageFromGallery();
-                }
-            }
-            else{
+
                 //system OS is < Marshmallow
-                pickImageFromGallery();
-            }
+                pickImageFromGallery()
+                true
         }
         else
         {
@@ -165,13 +153,14 @@ class MainActivity : AppCompatActivity() {
 
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (resultCode == Activity.RESULT_OK && requestCode == IMAGE_PICK_CODE){
+            Log.v("Check this please","dont forget")
+            classifyPhotoWhenImageIsGiven(MediaStore.Images.Media.getBitmap(this.contentResolver,data?.data))
+        }
+
         val file = File(photoFilePath)
         if (requestCode == REQUEST_TAKE_PICTURE && file.exists()) {
             classifyPhoto(file)
-        }
-
-        if (resultCode == Activity.RESULT_OK && requestCode == IMAGE_PICK_CODE){
-            classifyPhotoWhenImageIsGiven(MediaStore.Images.Media.getBitmap(this.contentResolver,data?.data))
         }
     }
 
